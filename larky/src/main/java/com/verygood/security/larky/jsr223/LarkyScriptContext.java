@@ -54,7 +54,7 @@ import javax.script.SimpleBindings;
  * {@link LarkyScriptEngine}'s default context is a {@code LarkyScriptContext}.
  *
  * <p>Standard streams are wrapped on first access. A Java host that already has a log writer
- * can provide it together with the settings via {@link #LarkyScriptContext(EvaluationSettings, Writer)}.
+ * can configure the settings and writer through {@code LarkyScriptContext.builder()}.
  *
  * <p>Settings were formerly given as {@code LARKY_EVAL_*} bindings; a binding with such a name, or
  * {@code _EXECUTION_STEPS_}, is now refused.
@@ -67,6 +67,8 @@ public class LarkyScriptContext implements ScriptContext, SupportsMetadata {
   @Nullable private Bindings globalBindings;
 
   // Remember the standard streams at construction, but allocate their wrappers only on use.
+  // The standard streams are wrapped on first use. The accessors are synchronized: a context, such as an
+  // engine's own, may be shared by threads, and none of them may see a stream half set up.
   @Nullable private InputStream defaultInput = System.in;
   @Nullable private PrintStream defaultOutput = System.out;
   @Nullable private PrintStream defaultError = System.err;
@@ -84,6 +86,25 @@ public class LarkyScriptContext implements ScriptContext, SupportsMetadata {
     this.settings = Objects.requireNonNull(settings, "settings");
     this.writer = Objects.requireNonNull(writer, "writer");
     defaultOutput = null;
+  }
+
+  @lombok.Builder(builderClassName = "Builder")
+  private static LarkyScriptContext create(EvaluationSettings settings, @Nullable Writer writer) {
+    if (writer != null) {
+      return new LarkyScriptContext(settings, writer);
+    }
+    var context = new LarkyScriptContext();
+    context.setSettings(settings);
+    return context;
+  }
+
+  public static final class Builder {
+    private EvaluationSettings settings = EvaluationSettings.NONE;
+
+    @Override
+    public String toString() {
+      return "LarkyScriptContext.Builder";
+    }
   }
 
   @Override
@@ -207,9 +228,10 @@ public class LarkyScriptContext implements ScriptContext, SupportsMetadata {
   }
 
   /**
-   * What happened in the last evaluation run in this context (or, when it is the engine's
-   * context, through {@code eval(script, bindings)}), whether it succeeded or failed; null before
-   * the first one has ended.
+   * What happened in the last evaluation or invocation run in this context (or, when it is the
+   * engine's context, through {@code eval(script, bindings)}), whether it succeeded or failed; null
+   * before the first one has ended. An invocation that cannot start, because the function does not
+   * exist, leaves it unchanged.
    */
   @Override
   @Nullable

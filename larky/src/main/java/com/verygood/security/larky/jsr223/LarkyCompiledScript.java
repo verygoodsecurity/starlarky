@@ -9,6 +9,7 @@ import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.EvaluationSettings;
 import com.verygood.security.larky.parser.InMemMapBackedStarFile;
@@ -50,7 +51,7 @@ import javax.script.ScriptException;
  */
 public class LarkyCompiledScript extends CompiledScript {
 
-  private static final LarkyScript.StarlarkMode LARKY_MODE = LarkyScript.StarlarkMode.STRICT;
+  static final LarkyScript.StarlarkMode LARKY_MODE = LarkyScript.StarlarkMode.STRICT;
   private static final String DEFAULT_SCRIPT_NAME = "larky.star";
 
   private final LarkyScriptEngine engine;
@@ -77,6 +78,10 @@ public class LarkyCompiledScript extends CompiledScript {
   @Override
   public ScriptEngine getEngine() {
     return engine;
+  }
+
+  Console console(ScriptContext context) {
+    return engine.console(context.getWriter());
   }
 
   /**
@@ -245,22 +250,10 @@ public class LarkyCompiledScript extends CompiledScript {
         new java.util.concurrent.atomic.AtomicReference<>();
 
     try {
-      String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
-      String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
-
-      final StarFile script;
-      if (modules.isEmpty() && cacheNamespace.isEmpty()) {
-        script = InMemMapBackedStarFile.createStarFile(scriptName, source);
-      } else {
-        ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
-        files.put(scriptName, source.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        modules.forEach(
-            (name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-        script = new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
-      }
+      StarFile script = interpretedFile(context);
       final DefaultLarkyInterpreter larkyInterpreter =
           new DefaultLarkyInterpreter(LARKY_MODE, settings, globalBindings, engineBindings);
-      result = larkyInterpreter.evaluate(script, engine.console(context.getWriter()), metadata::set);
+      result = larkyInterpreter.evaluate(script, console(context), metadata::set);
       EvaluationMetadata resultMetadata = result.metadata();
       completedMetadata = resultMetadata != null ? resultMetadata : metadata.get();
     } catch (IOException | StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException |
@@ -276,6 +269,22 @@ public class LarkyCompiledScript extends CompiledScript {
     }
     setBindingsValue(globalBindings, engineBindings, result.getGlobals());
     return result;
+  }
+
+  Bindings globalBindings(ScriptContext context) throws LarkyGlobalScopeRefusedException {
+    return engine.globalBindings(context);
+  }
+
+  StarFile interpretedFile(ScriptContext context) throws IOException {
+    String source = cachedSource != null ? cachedSource : readAndClose(context.getReader());
+    String scriptName = cachedScriptName != null ? cachedScriptName : DEFAULT_SCRIPT_NAME;
+    if (modules.isEmpty() && cacheNamespace.isEmpty()) {
+      return InMemMapBackedStarFile.createStarFile(scriptName, source);
+    }
+    ImmutableMap.Builder<String, byte[]> files = ImmutableMap.builder();
+    files.put(scriptName, source.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    modules.forEach((name, text) -> files.put(name, text.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+    return new InMemMapBackedStarFile(files.buildOrThrow(), scriptName, cacheNamespace);
   }
 
   /**

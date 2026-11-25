@@ -15,7 +15,7 @@ index bba694c4..fc28260b 100644
  
    static {
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Eval.java a/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
-index bf7eeac3..a171a8e4 100644
+index bf7eeac3..f7d089e6 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/Eval.java
 @@ -29,6 +29,7 @@ import net.starlark.java.spelling.SpellChecker;
@@ -43,6 +43,15 @@ index bf7eeac3..a171a8e4 100644
  
      } else if (lhs instanceof ListExpression list) {
        // a, b, c = ...
+@@ -382,7 +384,7 @@ final class Eval {
+       Object object = eval(fr, dot.getObject());
+       String field = dot.getField().getName();
+       try {
+-        EvalUtils.setField(object, field, value);
++        EvalUtils.setField(fr.thread, object, field, value);
+       } catch (EvalException ex) {
+         fr.setErrorLocation(dot.getDotLocation());
+         throw ex;
 @@ -473,7 +475,7 @@ final class Eval {
          throw ex;
        }
@@ -51,6 +60,15 @@ index bf7eeac3..a171a8e4 100644
 +        EvalUtils.setIndex(fr.thread, object, key, z);
        } catch (EvalException ex) {
          fr.setErrorLocation(stmt.getOperatorLocation());
+         throw ex;
+@@ -493,7 +495,7 @@ final class Eval {
+           fr.setErrorLocation(stmt.getOperatorLocation());
+           throw ex;
+         }
+-        EvalUtils.setField(object, field, z);
++        EvalUtils.setField(fr.thread, object, field, z);
+       } catch (EvalException ex) {
+         fr.setErrorLocation(dot.getDotLocation());
          throw ex;
 @@ -571,6 +573,7 @@ final class Eval {
      if (++fr.thread.steps >= fr.thread.stepLimit) {
@@ -82,7 +100,7 @@ index bf7eeac3..a171a8e4 100644
        throws EvalException, InterruptedException {
      Object x = eval(fr, slice.getObject());
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java a/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
-index 1655e0a9..ca41ac94 100644
+index 1655e0a9..cff0cc34 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/EvalUtils.java
 @@ -13,6 +13,7 @@
@@ -172,7 +190,7 @@ index 1655e0a9..ca41ac94 100644
      if (object instanceof Dict) {
        @SuppressWarnings("unchecked")
        Dict<Object, Object> dict = (Dict<Object, Object>) object;
-@@ -502,10 +514,15 @@ final class EvalUtils {
+@@ -502,16 +514,24 @@ final class EvalUtils {
        index = EvalUtils.getSequenceIndex(index, list.size());
        list.setElementAt(index, value);
  
@@ -190,6 +208,17 @@ index 1655e0a9..ca41ac94 100644
      }
    }
  
+   /** Updates the named field of x as if by the Starlark statement {@code x.field = value}. */
+-  static void setField(Object x, String field, Object value) throws EvalException {
+-    if (x instanceof Structure) {
++  static void setField(StarlarkThread thread, Object x, String field, Object value)
++      throws EvalException, InterruptedException {
++    if (x instanceof Structure.Threaded threaded) {
++      threaded.setField(thread, field, value); // VGS
++    } else if (x instanceof Structure) {
+       ((Structure) x).setField(field, value);
+     } else {
+       throw Starlark.errorf("cannot set .%s field of %s value", field, Starlark.type(x));
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/HasBinary.java a/libstarlark/src/main/java/net/starlark/java/eval/HasBinary.java
 index d55702f4..629fc82e 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/HasBinary.java
@@ -390,7 +419,7 @@ index 96c45406..2a6a82d9 100644
      switch (scope) {
        case GLOBAL -> value = getGlobal(name);
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java a/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
-index 361556d9..f3e5f66d 100644
+index 361556d9..dfde8d86 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
 +++ a/libstarlark/src/main/java/net/starlark/java/eval/Starlark.java
 @@ -599,6 +599,9 @@ public final class Starlark {
@@ -415,6 +444,43 @@ index 361556d9..f3e5f66d 100644
        super(createUncheckedEvalMessage(cause, thread), cause);
        thread.fillInStackTrace(this);
      }
+@@ -1076,7 +1079,7 @@ public final class Starlark {
+       String name,
+       @Nullable Object defaultValue)
+       throws EvalException, InterruptedException {
+-    return getattr(mu, semantics, CallUtils.getBuiltinManager(semantics), x, name, defaultValue);
++    return getattr(null, mu, semantics, CallUtils.getBuiltinManager(semantics), x, name, defaultValue);
+   }
+ 
+   /**
+@@ -1086,6 +1089,7 @@ public final class Starlark {
+   static Object getattr(StarlarkThread thread, Object x, String name, @Nullable Object defaultValue)
+       throws EvalException, InterruptedException {
+     return getattr(
++        thread,
+         thread.mutability(),
+         thread.getSemantics(),
+         thread.getBuiltinManager(),
+@@ -1095,6 +1099,7 @@ public final class Starlark {
+   }
+ 
+   private static Object getattr(
++      @Nullable StarlarkThread thread, // VGS: for Structure.Threaded; null if the caller has none
+       Mutability mu,
+       StarlarkSemantics semantics,
+       CallUtils.BuiltinManager manager,
+@@ -1105,7 +1110,10 @@ public final class Starlark {
+     // Check if it's a user-defined struct field first. If it is, we bypass the overhead of
+     // attempting to look up a non-existent MethodDescriptor.
+     if (x instanceof Structure struct) {
+-      Object field = struct.getValue(semantics, name);
++      Object field =
++          thread != null && struct instanceof Structure.Threaded threaded
++              ? threaded.getValue(thread, name) // VGS
++              : struct.getValue(semantics, name);
+       if (field != null) {
+         return Starlark.checkValid(field);
+       }
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java a/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java
 index 1d067d6f..cb42c0cf 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/StarlarkInt.java
@@ -857,6 +923,40 @@ index 1191027e..ffad3cd0 100644
      long indices = substringIndices(self, start, end);
      if (sub instanceof String) {
        return substringStartsWith(self, lo(indices), hi(indices), (String) sub);
+diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Structure.java a/libstarlark/src/main/java/net/starlark/java/eval/Structure.java
+index 955f338b..e1da9ed0 100644
+--- b/libstarlark/src/main/java/net/starlark/java/eval/Structure.java
++++ a/libstarlark/src/main/java/net/starlark/java/eval/Structure.java
+@@ -101,4 +101,29 @@ public interface Structure extends StarlarkValue {
+     }
+     return Types.struct(fieldTypes.buildOrThrow());
+   }
++
++  /**
++   * VGS: a structure whose fields can run Starlark code when they are read or written (a
++   * property, a descriptor), and so need the thread of the evaluation that does it.
++   *
++   * <p>For a value that implements it, the interpreter calls these methods with its thread for
++   * {@code x.f}, {@code getattr(x, "f")} and {@code x.f = v}, in place of {@link
++   * Structure#getValue(StarlarkSemantics, String)} and {@link Structure#setField(String,
++   * Object)}. Those remain for callers that have no thread. Like {@link
++   * StarlarkIndexable.Threaded}, it leaves {@link Structure}, whose fields are plain values, as
++   * upstream has it.
++   */
++  interface Threaded extends Structure {
++
++    /**
++     * Returns the value of the field {@code name}, or null if there is none, as {@link
++     * Structure#getValue(StarlarkSemantics, String)} does.
++     */
++    @Nullable
++    Object getValue(StarlarkThread thread, String name) throws EvalException, InterruptedException;
++
++    /** Updates the field {@code name}, as {@link Structure#setField(String, Object)} does. */
++    void setField(StarlarkThread thread, String field, Object value)
++        throws EvalException, InterruptedException;
++  }
+ }
 diff --git b/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java a/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java
 index 2bfc4d6a..38da7df8 100644
 --- b/libstarlark/src/main/java/net/starlark/java/eval/Tuple.java

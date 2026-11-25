@@ -196,8 +196,8 @@ public final class StarlarkUtil {
 
   /**
    * Converts a value from internal form to Starlark form. Internal form may use any
-   * subtype of {@link List} or {@link Map} for {@code list} and {@code dict} attributes, whereas
-   * Starlark uses only immutable {@link StarlarkList} and {@link Dict}.
+   * subtype of {@link List} or {@link Map}. New Starlark collections belong to the supplied
+   * mutability, or are immutable when it is null.
    *
    * <p>The conversion is similar to {@link Starlark#fromJava} for all types except
    * {@code Map<String, List<String>>}, for which fromJava does not
@@ -230,7 +230,7 @@ public final class StarlarkUtil {
         for (Map.Entry<?, ?> e : map.entrySet()) {
           dict.put(e.getKey(), Starlark.fromJava(e.getValue(), mutability));
         }
-        return dict.buildImmutable();
+        return mutability == null ? dict.buildImmutable() : dict.build(mutability);
       }
     }
 

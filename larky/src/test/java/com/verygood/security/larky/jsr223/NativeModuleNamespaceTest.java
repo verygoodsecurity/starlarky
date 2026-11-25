@@ -54,4 +54,42 @@ public class NativeModuleNamespaceTest {
     assertThat(e.getMessage())
         .contains("cannot load '@stdlib//vault': vault is a @vgs module; load it as '@vgs//vault'");
   }
+
+  @Test
+  public void nativeHttpResponseFactoryIsVgsOnly() throws Exception {
+    eval("load('@vgs//jhttpresponse', 'jhttpresponse')\nbuild = jhttpresponse.create\n");
+
+    ScriptException wrongNamespace = assertThrows(ScriptException.class,
+        () -> eval("load('@stdlib//jhttpresponse', 'jhttpresponse')\n"));
+    assertThat(wrongNamespace.getMessage()).contains("load it as '@vgs//jhttpresponse'");
+
+    ScriptException missingGlobal = assertThrows(ScriptException.class, () -> eval("build = _http_response\n"));
+    assertThat(missingGlobal.getMessage()).contains("name '_http_response' is not defined");
+  }
+
+  @Test
+  public void nativeHttpRequestFactoryIsVgsOnly() throws Exception {
+    eval("load('@vgs//jhttprequest', 'jhttprequest')\nbuild = jhttprequest.VGSHttpRequest\n");
+
+    ScriptException wrongNamespace = assertThrows(ScriptException.class,
+        () -> eval("load('@stdlib//jhttprequest', 'jhttprequest')\n"));
+    assertThat(wrongNamespace.getMessage()).contains("load it as '@vgs//jhttprequest'");
+  }
+
+  @Test
+  public void nativeUrllibRequestIsStdlibOnly() throws Exception {
+    eval("load('@stdlib//jurllib', 'jurllib')\nbuild = jurllib.Request\n");
+
+    ScriptException wrongNamespace = assertThrows(ScriptException.class,
+        () -> eval("load('@vgs//jurllib', 'jurllib')\n"));
+    assertThat(wrongNamespace.getMessage()).contains("load it as '@stdlib//jurllib'");
+
+    // urllib.request keeps its helpers to itself: other modules build on Request.
+    eval("load('@stdlib//urllib/request', 'request')\n"
+        + "def check():\n"
+        + "    for name in ('request_host', '_copy_header_items'):\n"
+        + "        if hasattr(request, name):\n"
+        + "            fail('urllib.request exports ' + name)\n"
+        + "check()\n");
+  }
 }

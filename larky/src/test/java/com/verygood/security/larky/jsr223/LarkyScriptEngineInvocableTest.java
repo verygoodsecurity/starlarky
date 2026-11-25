@@ -1,10 +1,13 @@
 package com.verygood.security.larky.jsr223;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.EvaluationSettings;
 import java.io.StringWriter;
 import java.util.ArrayList;
@@ -150,6 +153,21 @@ public class LarkyScriptEngineInvocableTest {
   }
 
   @Test
+  public void invokeMethodResolvesFunctionsFromTheEvaluatedFile() throws Exception {
+    var engine = new LarkyScriptEngine();
+    engine.eval("def process(value): return 'engine ' + value\n");
+    Object first = engine.compile("def process(value): return 'first ' + value\n", "first.star")
+        .eval(new LarkyScriptContext());
+    Object second = engine.compile("def process(value): return 'second ' + value\n", "second.star")
+        .eval(new LarkyScriptContext());
+
+    assertEquals("first result", engine.invokeMethod(first, "process", "result"));
+    assertEquals("second result", engine.invokeMethod(second, "process", "result"));
+    assertEquals("engine result", engine.invokeFunction("process", "result"));
+    assertThrows(NoSuchMethodException.class, () -> engine.invokeMethod(first, "missing"));
+  }
+
+  @Test
   public void getInterfaceCallsTheFunctionsOfTheSameName() throws Exception {
     final Invocable engine = (Invocable) evaluated("def add(a, b):\n    return a + b\n");
 
@@ -269,5 +287,21 @@ public class LarkyScriptEngineInvocableTest {
     } finally {
       pool.shutdownNow();
     }
+  }
+
+  @Test
+  public void aCallThatCannotStartKeepsTheLastEvaluationsMetadata() throws Exception {
+    final ScriptEngine engine = evaluated("value = 1\n");
+    final LarkyScriptContext context = (LarkyScriptContext) engine.getContext();
+    final EvaluationMetadata evaluation = context.metadata();
+    assertNotNull(evaluation);
+
+    assertThrows(NoSuchMethodException.class, () -> ((Invocable) engine).invokeFunction("missing"));
+    assertThrows(NoSuchMethodException.class, () -> ((Invocable) engine).invokeMethod("text", "missing"));
+    // a call refused for a retired setting binding does not start either
+    engine.put(com.verygood.security.larky.runtime.LarkyEvaluator.RETIRED_EXECUTION_STEPS, 1);
+    assertThrows(IllegalArgumentException.class, () -> ((Invocable) engine).invokeFunction("missing"));
+
+    assertSame(evaluation, context.metadata());
   }
 }

@@ -2,6 +2,7 @@
 """Unit tests for parse.star"""
 load("@stdlib//larky", larky="larky")
 load("@stdlib//builtins", builtins="builtins")
+load("@stdlib//re", "re")
 load("@stdlib//unittest", "unittest")
 load("@stdlib//urllib/parse", "parse")
 load("@vendor//asserts", "asserts")
@@ -158,6 +159,113 @@ def _test_urlsplit_strips_c0_control_and_space():
         ("https", "h", "/p", "x", "q", "f"))
 
 
+# unwrap, _splittype, _splithost and _splittag as Larky 1.3.0's parse.star had them (CPython's),
+# to check the native implementation that replaced them.
+_ref_typeprog = re.compile('([^/:]+):(.*)', re.DOTALL)
+_ref_hostprog = re.compile('//([^/#?]*)(.*)', re.DOTALL)
+
+def _ref_unwrap(url):
+    url = str(url).strip()
+    if url[:1] == '<' and url[-1:] == '>':
+        url = url[1:-1].strip()
+    if url[:4] == 'URL:':
+        url = url[4:].strip()
+    return url
+
+def _ref_splittype(url):
+    match = _ref_typeprog.match(url)
+    if match:
+        scheme, data = match.groups()
+        return scheme.lower(), data
+    return None, url
+
+def _ref_splithost(url):
+    match = _ref_hostprog.match(url)
+    if match:
+        host_port, path = match.groups()
+        if path and path[0] != '/':
+            path = '/' + path
+        return host_port, path
+    return None, url
+
+def _ref_splittag(url):
+    path, delim, tag = url.rpartition('#')
+    if delim:
+        return path, tag
+    return url, None
+
+_URL_HELPER_INPUTS = [
+    "",
+    " ",
+    ":",
+    "/",
+    "//",
+    "#",
+    "<",
+    ">",
+    "<>",
+    "< >",
+    "URL:",
+    "<URL:>",
+    "http://example.test/path?x=1#frag",
+    "  <URL:http://example.test/a b>  ",
+    "<URL: HTTP://Example.TEST >",
+    "<http://example.test/>",
+    "URL:http://example.test/",
+    "URL: URL:x",
+    "<<URL:x>>",
+    "HTTP://EXAMPLE.TEST",
+    "hTtP+x-1.2:rest:more",
+    ":no-scheme",
+    "/path:with-colon",
+    "a/b:c",
+    "no-colon",
+    "mailto:someone@example.test",
+    "scheme:",
+    "scheme:\nline\r\nline",
+    "//host",
+    "//host:8080/path",
+    "//host?query",
+    "//host#frag",
+    "//host/path#a#b",
+    "///path",
+    "//",
+    "/no-host",
+    "//user:pw@[::1]:80/x?y#z",
+    "a#b#c",
+    "a#",
+    "#a",
+    "\t\n\x0b\x0c\r\x1c\x1d\x1e\x1f http://x/ \u0085\u00a0",
+    "\u2003http://x/\u3000",
+    "http://ex\u00e4mple.test/p\u00e4th#fr\u00e4g",
+    "\u00c4BC:rest",
+    "\u0130STANBUL:rest",
+    "\U0001f600:x#\U0001f600",
+    "<URL:\U0001f600>",
+    "//\U0001f600/\U0001f600",
+    # half of a surrogate pair, on either side of a delimiter
+    "\U0001f600"[:1] + ":" + "\U0001f600"[1:],
+    "//" + "\U0001f600"[1:] + "#" + "\U0001f600"[:1],
+    "https://" + "x" * 20000 + "/" + "y" * 20000 + "#" + "z" * 20000,
+]
+
+def _test_native_url_helpers_match_the_starlark_ones():
+    for url in _URL_HELPER_INPUTS:
+        asserts.assert_that(parse.unwrap(url)).is_equal_to(_ref_unwrap(url))
+        asserts.assert_that(tuple(parse._splittype(url))).is_equal_to(_ref_splittype(url))
+        asserts.assert_that(tuple(parse._splithost(url))).is_equal_to(_ref_splithost(url))
+        asserts.assert_that(tuple(parse._splittag(url))).is_equal_to(_ref_splittag(url))
+        # as Request chains them
+        unwrapped = _ref_unwrap(url)
+        rest = _ref_splittype(_ref_splittag(unwrapped)[0])[1]
+        asserts.assert_that(tuple(parse._splithost(rest))).is_equal_to(_ref_splithost(rest))
+    # a str is required, as in CPython; unwrap takes any value, as str(url)
+    for function in [parse._splittype, parse._splithost, parse._splittag]:
+        for value in [None, 1, b"http://h/p"]:
+            asserts.assert_fails(lambda: function(value), "expected `str`; got")
+    for value in [None, 1, b"<URL:x>", ("<a>",), ["URL:x"]]:
+        asserts.assert_that(parse.unwrap(value)).is_equal_to(_ref_unwrap(value))
+
 def _suite():
     _suite = unittest.TestSuite()
     _suite.addTest(unittest.FunctionTestCase(_test_urlparse))
@@ -174,6 +282,7 @@ def _suite():
     _suite.addTest(unittest.FunctionTestCase(_test_parse_qs_and_unquote_plus_decode_utf8))
     _suite.addTest(unittest.FunctionTestCase(_test_quote_escapes_backslashes_and_control_bytes))
     _suite.addTest(unittest.FunctionTestCase(_test_urlsplit_strips_c0_control_and_space))
+    _suite.addTest(unittest.FunctionTestCase(_test_native_url_helpers_match_the_starlark_ones))
 
     return _suite
 

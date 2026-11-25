@@ -1141,6 +1141,10 @@
       "name": "com.verygood.security.larky.modules.types.structs.MutableStruct"
   },
   {
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.vgs.ShortCircuitResponse"
+  },
+  {
       "allDeclaredFields": true,
       "allDeclaredMethods": true,
       "allPublicMethods": true,
@@ -1155,6 +1159,46 @@
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.types.structs.SimpleStructWithMethods"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.urllib.UrllibRequest"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.objects.LarkyNativeObject"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.vgs.VgsHttpRequest"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.vgs.VgsHttpResponse"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.vgs.HttpRequestModule"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.UrllibModule"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.vgs.HttpResponseModule"
+  },
+  {
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "name": "com.verygood.security.larky.modules.vgs.ProxyModule"
   },
   {
       "allDeclaredFields": true,

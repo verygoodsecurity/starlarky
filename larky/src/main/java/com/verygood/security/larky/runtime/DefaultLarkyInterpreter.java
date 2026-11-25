@@ -3,6 +3,7 @@ package com.verygood.security.larky.runtime;
 import static com.verygood.security.larky.ModuleSupplier.ModuleSet;
 import static com.verygood.security.larky.parser.LarkyScript.StarlarkMode;
 
+import com.verygood.security.larky.parser.Computation;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Arrays;
@@ -94,6 +95,28 @@ public class DefaultLarkyInterpreter {
       StarFile script, Console console, java.util.function.Consumer<EvaluationMetadata> metadata)
       throws IOException, EvalException {
     return larkyScript.evaluate(script, moduleSet, console, metadata);
+  }
+
+  /** Executes a host computation with the entry module still mutable. */
+  public <I, O> O compute(
+      StarFile script, Writer writer, java.util.List<String> imports, I input,
+      Computation<I, O> computation, java.util.function.Consumer<EvaluationMetadata> metadata)
+      throws IOException, EvalException, InterruptedException {
+    return compute(script, new StreamWriterConsole(writer), imports, input, computation, metadata);
+  }
+
+  public <I, O> O compute(
+      StarFile script, Console console, java.util.List<String> imports, I input,
+      Computation<I, O> computation, java.util.function.Consumer<EvaluationMetadata> metadata)
+      throws IOException, EvalException, InterruptedException {
+    var evaluator = new LarkyEvaluator(larkyScript, moduleSet, console);
+    try {
+      return evaluator.compute(script, imports, input, computation);
+    } finally {
+      if (evaluator.lastMetadata() != null) {
+        metadata.accept(evaluator.lastMetadata());
+      }
+    }
   }
 
   public ParsedStarFile evaluate(StarFile script, Console console) throws IOException, EvalException {

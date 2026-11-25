@@ -3,7 +3,9 @@ package com.verygood.security.larky.jsr223;
 import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.console.Console;
 import com.verygood.security.larky.modules.utils.Reporter;
+import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.EvaluationSettings;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.parser.StarlarkUtil;
 import com.verygood.security.larky.runtime.LarkyEvaluator;
@@ -17,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 import javax.annotation.Nullable;
+import javax.script.ScriptContext;
 import javax.script.ScriptException;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
@@ -25,6 +28,7 @@ import net.starlark.java.eval.StarlarkCallable;
 import net.starlark.java.eval.StarlarkEvalWrapper;
 import net.starlark.java.eval.StarlarkFloat;
 import net.starlark.java.eval.StarlarkInt;
+import net.starlark.java.eval.StarlarkSemantics;
 import net.starlark.java.eval.StarlarkThread;
 
 /**
@@ -48,60 +52,115 @@ final class LarkyCalls {
     return writer != null ? writer : new java.io.PrintWriter(System.out, true);
   }
 
-  /**
-   * Calls {@code function} with {@code args}, converted to Starlark values on a new thread with the host's settings and print console.
-   */
+  /** Runs a call with mutability owned by Larky and publishes metadata to a Larky context. */
   static Object call(StarlarkCallable function, Object[] args, Console console, Map<String, ?> bindings,
-      EvaluationSettings settings) throws ScriptException {
+      ScriptContext callContext) throws ScriptException {
     LarkyEvaluator.refuseRetiredSettings(bindings.keySet());
-    final List<Object> starlarkArgs = new ArrayList<>(args == null ? 0 : args.length);
-    if (args != null) {
-      for (Object arg : args) {
-        starlarkArgs.add(StarlarkUtil.valueToStarlark(arg));
-      }
-    }
+    var context = callContext instanceof LarkyScriptContext larky ? larky : null;
+    var settings = context == null ? EvaluationSettings.NONE : context.getSettings();
     try (Mutability mu = Mutability.create("larky-call")) {
-      final StarlarkThread thread = StarlarkThread.createTransient(mu, LarkySemantics.LARKY_SEMANTICS);
-      final Reporter reporter = new Reporter(console);
+      var thread = StarlarkThread.createTransient(mu, LarkySemantics.LARKY_SEMANTICS);
+      var reporter = new Reporter(console);
       thread.setThreadLocal(Reporter.class, reporter);
       thread.setPrintHandler(reporter::report);
       settings.moduleProviders().installOn(thread);
       settings.stepLimit().ifPresent(thread::setMaxExecutionSteps);
       settings.expirationMs().ifPresent(thread::setExpirationMs);
       try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
-        return Starlark.call(thread, function, starlarkArgs, Map.of());
-      } catch (EvalException e) {
-        // as the interpreter reports a script whose top level fails (LarkyEvaluator, then LarkyCompiledScript)
-        throw LarkyEvaluationScriptException.of(new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, thread));
-      } catch (StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException e) {
-        throw LarkyEvaluationScriptException.of(e);
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        throw new ScriptException(e);
+        return callActive(thread, function, args, context, settings);
       }
     }
   }
 
-  /** The method {@code name} of the Starlark value {@code thiz}. */
+  static Object callMethodInScope(StarlarkThread thread, Object receiver, String name, Object[] args)
+      throws ScriptException, NoSuchMethodException {
+    Mutability mutability = thread.mutability();
+    if (mutability.isFrozen()) {
+      throw new IllegalStateException("invocation requires an open Starlark mutability");
+    }
+    try (CurrentEvaluation ignored = CurrentEvaluation.enter(thread)) {
+      var function = method(receiver, name, mutability, thread.getSemantics());
+      return callActive(thread, function, args, null, EvaluationSettings.NONE);
+    }
+  }
+
+  private static Object callActive(
+      StarlarkThread thread, StarlarkCallable function, Object[] args,
+      @Nullable LarkyScriptContext context, EvaluationSettings settings) throws ScriptException {
+    EvaluationMetadata.Outcome outcome = EvaluationMetadata.Outcome.INTERNAL;
+    LarkyEvaluationScriptException failure = null;
+    long start = context == null ? 0 : System.nanoTime();
+    try {
+      List<Object> starlarkArgs = List.of();
+      if (args != null && args.length > 0) {
+        starlarkArgs = new ArrayList<>(args.length);
+        for (Object arg : args) {
+          // Existing Starlark values keep their identity and owning mutability.
+          starlarkArgs.add(Starlark.valid(arg)
+              ? arg : StarlarkUtil.valueToStarlark(arg, thread.mutability()));
+        }
+      }
+      Object result = Starlark.call(thread, function, starlarkArgs, Map.of());
+      outcome = EvaluationMetadata.Outcome.OK;
+      return result;
+    } catch (EvalException e) {
+      outcome = LarkyEvaluator.failureOf(thread, e);
+      failure = LarkyEvaluationScriptException.of(new StarlarkEvalWrapper.Exc.RuntimeEvalException(e, thread));
+      throw failure;
+    } catch (StarlarkEvalWrapper.Exc.RuntimeEvalException | Starlark.UncheckedEvalException e) {
+      if (e.getCause() instanceof EvalException cause) {
+        outcome = LarkyEvaluator.failureOf(thread, cause);
+      }
+      failure = LarkyEvaluationScriptException.of(e);
+      throw failure;
+    } catch (InterruptedException e) {
+      outcome = EvaluationMetadata.Outcome.INTERRUPTED;
+      Thread.currentThread().interrupt();
+      failure = LarkyEvaluationScriptException.of(e);
+      throw failure;
+    } finally {
+      if (context != null) {
+        var metadata = new EvaluationMetadata(outcome, thread.getExecutedSteps(), 0,
+            System.nanoTime() - start, EvaluationMetadata.TREE_WALKER, settings);
+        context.setMetadata(metadata);
+        if (failure != null) {
+          failure.withMetadataIfAbsent(metadata);
+        }
+      }
+    }
+  }
+
+  /** The named method of a Starlark value or global function of an evaluated file. */
   static StarlarkCallable method(Object thiz, String name) throws NoSuchMethodException {
+    return method(thiz, name, Mutability.IMMUTABLE, LarkySemantics.LARKY_SEMANTICS);
+  }
+
+  private static StarlarkCallable method(
+      Object thiz, String name, Mutability mutability, StarlarkSemantics semantics)
+      throws NoSuchMethodException {
     if (thiz == null) {
       throw new IllegalArgumentException("no object to call " + name + " on");
     }
-    if (attribute(thiz, name) instanceof StarlarkCallable callable) {
+    if (attribute(thiz, name, mutability, semantics) instanceof StarlarkCallable callable) {
       return callable;
     }
     throw new NoSuchMethodException(Starlark.type(thiz) + " has no method " + name);
   }
 
-  /** Whether the Starlark value {@code thiz} has a method {@code name}. */
+  /** Whether the named method or global function is callable. */
   static boolean hasMethod(Object thiz, String name) {
-    return attribute(thiz, name) instanceof StarlarkCallable;
+    return attribute(thiz, name, Mutability.IMMUTABLE, LarkySemantics.LARKY_SEMANTICS)
+        instanceof StarlarkCallable;
   }
 
   @Nullable
-  private static Object attribute(Object thiz, String name) {
+  private static Object attribute(
+      Object thiz, String name, Mutability mutability, StarlarkSemantics semantics) {
+    if (thiz instanceof ParsedStarFile file) {
+      return file.getModule().getGlobal(name);
+    }
     try {
-      return Starlark.getattr(Mutability.IMMUTABLE, LarkySemantics.LARKY_SEMANTICS, thiz, name, Starlark.NONE);
+      return Starlark.getattr(mutability, semantics, thiz, name, Starlark.NONE);
     } catch (EvalException e) {
       return null;
     } catch (InterruptedException e) {

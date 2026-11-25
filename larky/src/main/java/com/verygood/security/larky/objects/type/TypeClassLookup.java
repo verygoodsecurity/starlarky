@@ -9,6 +9,7 @@ import com.verygood.security.larky.LarkySemantics;
 import com.verygood.security.larky.modules.types.LarkyObject;
 import com.verygood.security.larky.modules.types.PyProtocols;
 import com.verygood.security.larky.objects.LarkyFunction;
+import com.verygood.security.larky.objects.LarkyNativeObject;
 import com.verygood.security.larky.objects.PyObject;
 
 import net.starlark.java.eval.EvalException;
@@ -66,7 +67,10 @@ public abstract class TypeClassLookup {
     Object result;
     if (x instanceof LarkyObject) {
       final LarkyObject larkyObject = (LarkyObject) x;
-      if (larkyObject instanceof PyObject) {
+      if (larkyObject instanceof LarkyNativeObject nativeObject) {
+        // a class written in Java: its class, to a script, is the function that builds it
+        result = nativeObject.constructor();
+      } else if (larkyObject instanceof PyObject) {
         result = ((PyObject) larkyObject).typeClass();
       } else if (larkyObject.hasClassField()) {
         result = larkyObject.getField(PyProtocols.__CLASS__, thread);

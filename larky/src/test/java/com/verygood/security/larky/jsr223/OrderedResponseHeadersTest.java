@@ -1,18 +1,81 @@
 package com.verygood.security.larky.jsr223;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.junit.Assert.assertThrows;
 
+import com.verygood.security.larky.LarkySemantics;
+import com.verygood.security.larky.modules.vgs.VgsHttpResponse;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.parser.ParsedStarFile;
+import java.util.ArrayList;
 import java.util.List;
 import javax.script.CompiledScript;
 import javax.script.SimpleBindings;
+import net.starlark.java.eval.EvalException;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.Starlark;
+import net.starlark.java.eval.StarlarkThread;
 import net.starlark.java.eval.Tuple;
 import org.junit.Test;
 
 public class OrderedResponseHeadersTest {
   private static final String IMPORT = "load('@vgs//http/response', 'VGSHttpResponse')\n";
   private static final String COOKIE_WITH_EXPIRES = "a=1; Expires=Wed, 09 Jun 2027 10:18:14 GMT";
+
+  @Test
+  public void responseHasAJavaTypeAndKeepsItsStarlarkClass() throws Exception {
+    ParsedStarFile file = eval("""
+        response = VGSHttpResponse("response", status_code=201)
+        same_class = response.__class__ == VGSHttpResponse
+        """);
+    var response = (VgsHttpResponse) file.getModule().getGlobal("response");
+    assertThat(file.getGlobalEnvironmentVariable("same_class", Boolean.class)).isTrue();
+    assertThat(assertThrows(EvalException.class, () -> response.setField("body", "changed")))
+        .hasMessageThat().contains("trying to mutate a frozen VGSHttpResponse value");
+  }
+
+  @Test
+  public void javaHeaderVisitorPreservesOrderAndDefersToCustomizedHeaders() throws Exception {
+    var engine = new LarkyScriptEngine();
+    var file = engine.eval(IMPORT + """
+        def build(customization):
+            response = VGSHttpResponse(headers=[("Old", "discard")])
+            response.headers = [("Set-Cookie", "first=1"), ("set-cookie", "second=2")]
+            if customization == "items":
+                response.headers.items = lambda: [("Overridden", "yes")]
+            if customization == "backing":
+                replacement = VGSHttpResponse(headers=[("Replaced", "yes")])
+                # a different header object than the one the headers property installed
+                response._headers = replacement.headers
+            return response
+        """);
+    try (var mutability = Mutability.create("response-headers")) {
+      var thread = StarlarkThread.createTransient(mutability, LarkySemantics.LARKY_SEMANTICS);
+      try (var scope = CurrentEvaluation.enter(thread)) {
+        var ordinary = (VgsHttpResponse) engine.invokeMethodInScope(thread, file, "build", "none");
+        var visited = new ArrayList<Tuple>();
+        assertThat(ordinary.visitHeaderLines((name, value) -> visited.add(Tuple.pair(name, value))))
+            .isTrue();
+        assertThat(visited)
+            .containsExactly(Tuple.pair("Set-Cookie", "first=1"), Tuple.pair("set-cookie", "second=2"))
+            .inOrder();
+
+        var customized = (VgsHttpResponse) engine.invokeMethodInScope(thread, file, "build", "items");
+        visited.clear();
+        assertThat(customized.visitHeaderLines((name, value) -> visited.add(Tuple.pair(name, value))))
+            .isFalse();
+        assertThat(visited).isEmpty();
+        assertThat((List<?>) customized.headerItems(thread)).containsExactly(Tuple.pair("Overridden", "yes"));
+
+        // a replaced container is still a native multidict, read directly
+        var replaced = (VgsHttpResponse) engine.invokeMethodInScope(thread, file, "build", "backing");
+        assertThat(replaced.visitHeaderLines((name, value) -> visited.add(Tuple.pair(name, value))))
+            .isTrue();
+        assertThat(visited).containsExactly(Tuple.pair("Replaced", "yes"));
+        assertThat((List<?>) replaced.headerItems(thread)).containsExactly(Tuple.pair("Replaced", "yes"));
+      }
+    }
+  }
 
   @Test
   public void preservesOrderedPairsAndCaseInsensitiveLookup() throws Exception {

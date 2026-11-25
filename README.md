@@ -194,6 +194,11 @@ mvn test -pl larky -am -Dtest=VGSLibTests -Dlarky.vgs_test=test_default_request_
 
 ### Preserving repeated HTTP response headers
 
+```python
+load("@vgs//http/request", "VGSHttpRequest")
+load("@vgs//http/response", "VGSHttpResponse")
+```
+
 The `VGSHttpResponse` constructor and `response.headers` assignment accept a
 dict or a sequence of `(name, value)` pairs. `response.headers.items()` returns
 every header line in insertion order, with its original name spelling.
@@ -239,6 +244,27 @@ JSR-223 hosts supply per-run limits and module providers through
 initialization steps reported separately. Custom JSR-223 contexts can implement
 `SupportsMetadata` to receive compiled evaluation metadata. Hosts using `LarkyScript`
 directly can pass the settings to the evaluation overload.
+
+### Calling a compiled script within one evaluation
+
+Java hosts can build Starlark inputs, call script functions, and inspect or update their
+results with `LarkyScriptEvaluator`. Pass the compiled script and the context for this run.
+The standard console streams are wrapped only when a caller asks for them.
+
+```java
+var context = LarkyScriptContext.builder()
+    .settings(settings)
+    .writer(logWriter)
+    .build();
+Object result = LarkyScriptEvaluator.compute(
+    compiled, context, input, (run, value) -> run.call("process", value));
+```
+
+The callback runs synchronously after the script's top level, on the same Starlark thread
+and with the same limits and log writer. It can call other functions and mutate values
+owned by this evaluation until it returns. Those values freeze when the scope closes,
+including on failure. Loaded library globals are already frozen. The result goes back
+to Java and the evaluation metadata is available on `context`.
 
 ### Shipping a host-owned module next to a script
 
