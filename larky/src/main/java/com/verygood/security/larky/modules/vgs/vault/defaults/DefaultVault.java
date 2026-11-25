@@ -3,10 +3,10 @@ package com.verygood.security.larky.modules.vgs.vault.defaults;
 import com.google.common.collect.ImmutableMap;
 import com.verygood.security.larky.modules.vgs.vault.DecoratorConfig;
 import com.verygood.security.larky.modules.vgs.vault.spi.LarkyVault;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.NoneType;
 import net.starlark.java.eval.Starlark;
@@ -23,8 +23,10 @@ public class DefaultVault implements LarkyVault {
     /** The lookup context a redact stores an alias under. */
     private record RedactContext(String entityKey, String kind) {}
 
-    private final Map<StorageKey, Object> persistentVaultStorage = new HashMap<>();
-    private final Map<StorageKey, Object> volatileVaultStorage = new HashMap<>();
+    // VaultModule.INSTANCE holds one DefaultVault for every script run, so runs on different threads
+    // share these maps. Keys are StorageKey records and values the String secrets: never null.
+    private final Map<StorageKey, Object> persistentVaultStorage = new ConcurrentHashMap<>();
+    private final Map<StorageKey, Object> volatileVaultStorage = new ConcurrentHashMap<>();
 
     private final ImmutableMap<String, Map<StorageKey, Object>> storageConfig = ImmutableMap.of(
             "persistent", persistentVaultStorage,
@@ -111,9 +113,9 @@ public class DefaultVault implements LarkyVault {
 
     private String getValue(Object value) throws EvalException {
         if (!(value instanceof String)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                     "Value of type %s is not supported in DefaultVault, expecting String", value.getClass().getName()
-            ));
+            );
         }
 
         return value.toString();
@@ -153,10 +155,10 @@ public class DefaultVault implements LarkyVault {
             return null;
         }
         if (!(value instanceof String name)) {
-            throw Starlark.errorf(String.format(
+            throw Starlark.errorf(
                     "%s of type %s is not supported in DefaultVault, expecting String",
                     field, value.getClass().getName()
-            ));
+            );
         }
         if (name.isBlank()) {
             throw Starlark.errorf("%s must not be empty or blank", field);
@@ -170,20 +172,20 @@ public class DefaultVault implements LarkyVault {
             return persistentVaultStorage;
         } else if (storage instanceof String) {
             if (!storageConfig.containsKey(storage)) {
-                throw Starlark.errorf(String.format(
+                throw Starlark.errorf(
                         "Storage '%s' not found in supported storage types: %s",
                         storage,
                         storageConfig.keySet().toString()
-                ));
+                );
             }
 
             return storageConfig.get(storage);
         }
 
-        throw Starlark.errorf(String.format(
+        throw Starlark.errorf(
                 "Storage of type %s is not supported in DefaultVault, expecting String",
                 storage.getClass().getName()
-        ));
+        );
     }
 
     private AliasGenerator getAliasGenerator(Object format) throws EvalException {
@@ -194,18 +196,18 @@ public class DefaultVault implements LarkyVault {
             if (formatToAliasGenerator.containsKey(format)) {
                 return formatToAliasGenerator.get(format);
             } else {
-                throw Starlark.errorf(String.format(
+                throw Starlark.errorf(
                         "Format '%s' not found in supported format types: %s",
                         format,
                         formatToAliasGenerator.keySet().toString()
-                ));
+                );
             }
         }
 
-        throw Starlark.errorf(String.format(
+        throw Starlark.errorf(
                 "Format of type %s is not supported in DefaultVault, expecting String",
                 format.getClass().getName()
-        ));
+        );
     }
 
 }
