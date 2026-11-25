@@ -1,8 +1,8 @@
 package com.verygood.security.larky.modules.crypto.Cipher;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.annot.CacheableWhenFrozen;
 import net.starlark.java.eval.Mutability;
-import com.verygood.security.larky.modules.types.NativeMutability;
 import static net.starlark.java.eval.StarlarkBytes.StarlarkByteArray;
 
 import java.util.Arrays;
@@ -29,7 +29,7 @@ import javax.crypto.Cipher;
 @CacheableWhenFrozen
 public class LarkyStreamCipher<T extends SkippingStreamCipher & StreamCipher & BlockCipher> implements Mutability.Freezable, StarlarkValue {
   // The evaluation that created this value; methods that change its state fail once it is frozen.
-  private final Mutability mutability = NativeMutability.current();
+  private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
 
   @Override
   public Mutability mutability() {
@@ -67,7 +67,7 @@ public class LarkyStreamCipher<T extends SkippingStreamCipher & StreamCipher & B
   public StarlarkInt encrypt(StarlarkBytes plaintext, StarlarkByteArray output, StarlarkThread thread) throws EvalException {
     // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
     Starlark.checkMutable(output);
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     // padding will be done by pycryptodome, this method is dangerous to call
     // directly. DO NOT CALL DIRECTLY.
     if (this.initialized && this.processedBytes != 0) {
@@ -111,7 +111,7 @@ public class LarkyStreamCipher<T extends SkippingStreamCipher & StreamCipher & B
   public StarlarkInt decrypt(StarlarkBytes cipherText, StarlarkByteArray output, StarlarkThread thread) throws EvalException {
     // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
     Starlark.checkMutable(output);
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     byte[] plainText = new byte[cipherText.size()];
     if (this.initialized && this.processedBytes != 0) {
       this.blockCipher.skip(this.processedBytes);

@@ -1,8 +1,9 @@
 package com.verygood.security.larky.modules.crypto.Cipher;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.annot.CacheableWhenFrozen;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.Mutability;
-import com.verygood.security.larky.modules.types.NativeMutability;
 import java.nio.ByteBuffer;
 import java.security.ProviderException;
 
@@ -29,7 +30,7 @@ import org.bouncycastle.crypto.modes.gcm.GCMUtil;
 @CacheableWhenFrozen
 public class GHash implements Mutability.Freezable, StarlarkValue {
   // The evaluation that created this value; methods that change its state fail once it is frozen.
-  private final Mutability mutability = NativeMutability.current();
+  private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
 
   @Override
   public Mutability mutability() {
@@ -113,7 +114,7 @@ public class GHash implements Mutability.Freezable, StarlarkValue {
           useStarlarkThread = true
       )
       public StarlarkBytes digest(StarlarkThread thread) throws EvalException {
-        NativeMutability.checkMutable(this); // digest() resets the state
+        Starlark.checkMutable(this); // digest() resets the state
         byte[] resBuf = this.digest();
         return StarlarkBytes.of(thread.mutability(),resBuf);
 //        return StarlarkBytes.builder(thread).setSequence(resBuf).build();
@@ -129,7 +130,7 @@ public class GHash implements Mutability.Freezable, StarlarkValue {
           })}
       )
     public void update(StarlarkBytes data) throws EvalException {
-        NativeMutability.checkMutable(this);
+        Starlark.checkMutable(this);
         byte[] input = data.toByteArray();
         update(input);
     }

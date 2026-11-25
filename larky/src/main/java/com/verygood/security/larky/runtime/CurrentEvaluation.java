@@ -17,6 +17,7 @@
 package com.verygood.security.larky.runtime;
 
 import javax.annotation.Nullable;
+import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.StarlarkThread;
 
 /**
@@ -78,6 +79,16 @@ public final class CurrentEvaluation implements AutoCloseable {
   @Nullable
   public static StarlarkThread currentOrNull() {
     return CURRENT.get();
+  }
+
+  /**
+   * Returns the owner for a value created without an explicit thread. Values created by an
+   * evaluation freeze with that evaluation. A value created directly by Java has its own
+   * mutability.
+   */
+  public static Mutability mutabilityForNewValue() {
+    StarlarkThread thread = currentOrNull();
+    return thread != null ? thread.mutability() : Mutability.create("native value");
   }
 
   /**

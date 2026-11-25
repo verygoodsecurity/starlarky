@@ -1,6 +1,6 @@
 package com.verygood.security.larky.modules.crypto.PublicKey.ECC;
 
-import com.verygood.security.larky.modules.types.NativeMutability;
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import java.math.BigInteger;
 
 import net.starlark.java.annot.Param;
@@ -23,7 +23,7 @@ import org.bouncycastle.math.ec.ECPoint;
 public class LarkyECPoint implements Mutability.Freezable, StarlarkValue {
   // The evaluation that created this point. Nothing changes a point, so this only tells the module
   // cache's admission walk that a point in a frozen module is frozen.
-  private final Mutability mutability = NativeMutability.current();
+  private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
   private final ECPoint point;
 
   @Override

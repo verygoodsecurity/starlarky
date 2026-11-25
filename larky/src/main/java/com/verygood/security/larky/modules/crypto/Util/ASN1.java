@@ -1,8 +1,8 @@
 package com.verygood.security.larky.modules.crypto.Util;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.annot.CacheableWhenFrozen;
 import net.starlark.java.eval.Mutability;
-import com.verygood.security.larky.modules.types.NativeMutability;
 import static com.verygood.security.larky.modules.crypto.Util.ASN1Utils.ASN1EncodableFactory;
 
 import com.google.common.collect.Iterators;
@@ -235,7 +235,7 @@ public class ASN1 {
     implements StarlarkIterable<LarkyASN1Encodable>, StarlarkIndexable, Mutability.Freezable {
 
     // The evaluation that created this value; append() fails once it is frozen, as for a list.
-    private final Mutability mutability = NativeMutability.current();
+    private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
 
     @Override
     public Mutability mutability() {
@@ -301,7 +301,7 @@ public class ASN1 {
       doc = "Adds an item to the end of the list.",
       parameters = {@Param(name = "item", doc = "Item to add at the end.")})
     public void append(Object item) throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       ASN1Encodable atom;
       if (item instanceof String) {
         String s = (String) item;
@@ -323,7 +323,7 @@ public class ASN1 {
       @Param(name = "strict", named = true, defaultValue = "False"),
     }, useStarlarkThread = true)
     public StarlarkList<?> decode(StarlarkBytes barr, Boolean strict, StarlarkThread thread) throws EvalException {
-      NativeMutability.checkMutable(this); // decoding replaces this object's contents
+      Starlark.checkMutable(this); // decoding replaces this object's contents
       byte[] asbytes = barr.toByteArray();
       try {
         this.encodable = ASN1Set.fromByteArray(asbytes);
@@ -418,7 +418,7 @@ public class ASN1 {
     implements StarlarkIterable<LarkyASN1Encodable>, StarlarkIndexable, Mutability.Freezable {
 
     // The evaluation that created this value; append() fails once it is frozen, as for a list.
-    private final Mutability mutability = NativeMutability.current();
+    private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
 
     @Override
     public Mutability mutability() {
@@ -453,7 +453,7 @@ public class ASN1 {
       parameters = {@Param(name = "item", doc = "Item to add at the end.")})
     @SuppressWarnings("unchecked")
     public void append(Object item) throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       ASN1Encodable atom;
       if (item instanceof String) {
         String s = (String) item;
@@ -475,7 +475,7 @@ public class ASN1 {
       @Param(name = "strict", named = true, defaultValue = "False"),
     }, useStarlarkThread = true)
     public StarlarkList<?> decode(StarlarkBytes barr, Boolean strict, StarlarkThread thread) throws EvalException {
-      NativeMutability.checkMutable(this); // decoding replaces this object's contents
+      Starlark.checkMutable(this); // decoding replaces this object's contents
       byte[] asbytes = barr.toByteArray();
       try (ByteArrayInputStream bais = new ByteArrayInputStream(asbytes)) {
         this.encodable = DERSequence.fromByteArray(asbytes);

@@ -1,8 +1,8 @@
 package com.verygood.security.larky.modules.crypto.Cipher;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.annot.CacheableWhenFrozen;
 import net.starlark.java.eval.Mutability;
-import com.verygood.security.larky.modules.types.NativeMutability;
 import java.util.Arrays;
 
 import net.starlark.java.annot.Param;
@@ -27,7 +27,7 @@ import org.jetbrains.annotations.NotNull;
 @CacheableWhenFrozen
 public class LarkyBlockCipher implements Mutability.Freezable, StarlarkValue {
   // The evaluation that created this value; methods that change its state fail once it is frozen.
-  private final Mutability mutability = NativeMutability.current();
+  private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
 
   @Override
   public Mutability mutability() {
@@ -76,7 +76,7 @@ public class LarkyBlockCipher implements Mutability.Freezable, StarlarkValue {
   public StarlarkInt encrypt(StarlarkBytes plaintext, StarlarkByteArray output, StarlarkThread thread) throws EvalException {
     // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
     Starlark.checkMutable(output);
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     initializeForEncryption();
     return process(plaintext, output);
   }
@@ -115,7 +115,7 @@ public class LarkyBlockCipher implements Mutability.Freezable, StarlarkValue {
   public StarlarkInt decrypt(StarlarkBytes cipherText, StarlarkByteArray output, StarlarkThread thread) throws EvalException {
     // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
     Starlark.checkMutable(output);
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     initializeForDecryption();
     return process(cipherText, output);
   }

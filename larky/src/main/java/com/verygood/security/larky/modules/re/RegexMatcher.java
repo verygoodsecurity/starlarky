@@ -1,8 +1,8 @@
 package com.verygood.security.larky.modules.re;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.annot.CacheableWhenFrozen;
 import net.starlark.java.eval.Mutability;
-import com.verygood.security.larky.modules.types.NativeMutability;
 import com.google.common.base.Joiner;
 import com.google.re2j.Matcher;
 import com.google.re2j.Pattern;
@@ -28,7 +28,7 @@ import net.starlark.java.eval.Tuple;
 @CacheableWhenFrozen
 public class RegexMatcher implements Mutability.Freezable, StarlarkValue {
   // The evaluation that created this value; methods that change its state fail once it is frozen.
-  private final Mutability mutability = NativeMutability.current();
+  private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
 
   @Override
   public Mutability mutability() {
@@ -76,7 +76,7 @@ public class RegexMatcher implements Mutability.Freezable, StarlarkValue {
       }
   )
   public RegexMatcher reset(Object input) throws EvalException {
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     if (NoneType.class.isAssignableFrom(input.getClass())) {
       matcher.reset();
     } else if (String.class.isAssignableFrom(input.getClass())) {
@@ -251,7 +251,7 @@ public class RegexMatcher implements Mutability.Freezable, StarlarkValue {
     }
   )
   public boolean matches(StarlarkInt pos, StarlarkInt endpos) throws EvalException {
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     return matcher.matches();
   }
 
@@ -279,7 +279,7 @@ public class RegexMatcher implements Mutability.Freezable, StarlarkValue {
     }
   )
   public boolean lookingAt(StarlarkInt spos, StarlarkInt sendpos) throws EvalException {
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     int pos = spos.toIntUnchecked();
     int endpos = sendpos.toIntUnchecked();
     pos = Math.max(pos, 0);
@@ -345,7 +345,7 @@ public class RegexMatcher implements Mutability.Freezable, StarlarkValue {
         }
     )
     public boolean search(StarlarkInt s, StarlarkInt e) throws EvalException {
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
       int pos = Math.max(s.toIntUnchecked(), 0);
       int endpos = (e.toIntUnchecked() == -1) ? input.length() : e.toIntUnchecked();
       if(pos != 0 && !parentPattern.re2Source().startsWith("^")) {
@@ -380,7 +380,7 @@ public class RegexMatcher implements Mutability.Freezable, StarlarkValue {
       }
   )
   public boolean find(Object start) throws EvalException {
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     if (Starlark.isNullOrNone(start)) {
       return matcher.find();
     }
@@ -439,7 +439,7 @@ public class RegexMatcher implements Mutability.Freezable, StarlarkValue {
           )}
   )
   public RegexMatcher appendReplacement(StarlarkList<String> sb, String replacement) throws EvalException {
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     StringBuffer builder = new StringBuffer().append(Joiner.on("").join(sb));
     // in python, the \digit is similar to \$digit in Java.
     // Go through the entire replacement string and replace anything that matches
@@ -474,7 +474,7 @@ public class RegexMatcher implements Mutability.Freezable, StarlarkValue {
           )}
   )
   public String appendTail(String s) throws EvalException {
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     return matcher.appendTail(new StringBuffer().append(s)).toString();
   }
 
@@ -493,7 +493,7 @@ public class RegexMatcher implements Mutability.Freezable, StarlarkValue {
           )}
   )
   public String replaceAll(String replacement) throws EvalException {
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     return matcher.replaceAll(replacement);
   }
 
@@ -512,7 +512,7 @@ public class RegexMatcher implements Mutability.Freezable, StarlarkValue {
           )}
   )
   public String replaceFirst(String replacement) throws EvalException {
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     return matcher.replaceFirst(replacement);
   }
 

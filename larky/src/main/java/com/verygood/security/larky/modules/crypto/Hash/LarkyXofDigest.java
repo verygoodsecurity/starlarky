@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.StarlarkBytes;
 import net.starlark.java.eval.StarlarkInt;
@@ -42,7 +43,7 @@ public class LarkyXofDigest<T extends KeccakDigest & Xof> extends LarkyKeccakDig
           @Param(name = "length", allowedTypes = {@ParamType(type = StarlarkInt.class)})
       }, useStarlarkThread = true)
   public StarlarkBytes read(StarlarkInt length, StarlarkThread thread) throws EvalException {
-    com.verygood.security.larky.modules.types.NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     int length_ = length.toIntUnchecked();
     Preconditions.checkArgument(
         length_ < MAX_READ_LENGTH,

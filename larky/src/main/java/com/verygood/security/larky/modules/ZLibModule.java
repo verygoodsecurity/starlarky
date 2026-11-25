@@ -1,8 +1,8 @@
 package com.verygood.security.larky.modules;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.annot.CacheableWhenFrozen;
 import net.starlark.java.eval.Mutability;
-import com.verygood.security.larky.modules.types.NativeMutability;
 import java.util.zip.CRC32;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
@@ -186,7 +186,7 @@ public final class ZLibModule implements StarlarkValue {
   @CacheableWhenFrozen
   static class LarkyInflater implements StarlarkValue, Mutability.Freezable {
     // The evaluation that created this value; methods that change its state fail once it is frozen.
-    private final Mutability mutability = NativeMutability.current();
+    private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
 
     @Override
     public Mutability mutability() {
@@ -210,7 +210,7 @@ public final class ZLibModule implements StarlarkValue {
 
     @StarlarkMethod(name="setDictionary", parameters = {@Param(name="zdict")})
     public void setDictionary(StarlarkBytes zdict) throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       if(StarlarkUtil.isNullOrNoneOrUnbound(zdict)) {
         throw Starlark.errorf("setDictionary requires a sequence of bytes of at least length 1");
       }
@@ -219,7 +219,7 @@ public final class ZLibModule implements StarlarkValue {
 
     @StarlarkMethod(name="setInput", parameters = {@Param(name = "param")})
     public void setInput(StarlarkBytes param) throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       this.inflater.setInput(param.toByteArray());
     }
 
@@ -245,7 +245,7 @@ public final class ZLibModule implements StarlarkValue {
 
     @StarlarkMethod(name="reset")
     public void reset() throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       inflater.reset();
     }
 
@@ -256,7 +256,7 @@ public final class ZLibModule implements StarlarkValue {
 
     @StarlarkMethod(name="end")
     public void end() throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       this.inflater.end();
     }
 
@@ -266,7 +266,7 @@ public final class ZLibModule implements StarlarkValue {
       @Param(name = "length", defaultValue = "unbound"),
     })
     public StarlarkInt inflate(StarlarkByteArray buf, Object offsetO, Object lengthO) throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
       Starlark.checkMutable(buf);
       if(rawInflate) {
@@ -314,7 +314,7 @@ public final class ZLibModule implements StarlarkValue {
   @CacheableWhenFrozen
   static class LarkyDeflater implements StarlarkValue, Mutability.Freezable {
     // The evaluation that created this value; methods that change its state fail once it is frozen.
-    private final Mutability mutability = NativeMutability.current();
+    private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
 
     @Override
     public Mutability mutability() {
@@ -346,7 +346,7 @@ public final class ZLibModule implements StarlarkValue {
       @Param(name = "length", defaultValue = "unbound"),
     })
     public void setInput(StarlarkBytes data, Object offsetO, Object lengthO) throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       if(!StarlarkUtil.isNullOrNoneOrUnbound(lengthO)) {
         final StarlarkInt off = (StarlarkInt) StarlarkUtil.valueToStarlark(offsetO);
         final StarlarkInt len = (StarlarkInt) StarlarkUtil.valueToStarlark(lengthO);
@@ -359,13 +359,13 @@ public final class ZLibModule implements StarlarkValue {
 
     @StarlarkMethod(name="reset")
     public void reset() throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       deflater.reset();
     }
 
     @StarlarkMethod(name="finish")
     public void finish() throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       deflater.finish();
     }
 
@@ -376,19 +376,19 @@ public final class ZLibModule implements StarlarkValue {
 
     @StarlarkMethod(name="end")
     public void end() throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       deflater.end();
     }
 
     @StarlarkMethod(name="setStrategy", parameters = {@Param(name="strategy")})
     public void setStrategy(StarlarkInt strategy) throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       deflater.setStrategy(strategy.toIntUnchecked());
     }
 
     @StarlarkMethod(name="setDictionary", parameters = {@Param(name="zdict")})
     public void setDictionary(StarlarkBytes zdict) throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       if(StarlarkUtil.isNullOrNoneOrUnbound(zdict)) {
         throw Starlark.errorf("setDictionary requires a sequence of bytes of at least length 1");
       }
@@ -400,7 +400,7 @@ public final class ZLibModule implements StarlarkValue {
       @Param(name = "flush"),
     })
     public StarlarkInt deflate(StarlarkByteArray buf, StarlarkInt flush) throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       // Fail as a Starlark mutation would (frozen, or being iterated) before touching any state.
       Starlark.checkMutable(buf);
       final int outLength = buf.size();
@@ -431,7 +431,7 @@ public final class ZLibModule implements StarlarkValue {
   @CacheableWhenFrozen
   static class LarkyCRC32 implements StarlarkValue, Mutability.Freezable {
     // The evaluation that created this value; methods that change its state fail once it is frozen.
-    private final Mutability mutability = NativeMutability.current();
+    private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
 
     @Override
     public Mutability mutability() {
@@ -448,7 +448,7 @@ public final class ZLibModule implements StarlarkValue {
           @Param(name = "data")}
     )
     public void update(StarlarkBytes buf) throws EvalException {
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
       byte[] bytes = buf.toByteArray();
       this.x.update(bytes, 0, bytes.length);
     }

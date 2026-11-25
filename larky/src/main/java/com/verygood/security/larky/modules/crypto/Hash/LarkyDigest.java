@@ -1,10 +1,11 @@
 package com.verygood.security.larky.modules.crypto.Hash;
 
+import com.verygood.security.larky.runtime.CurrentEvaluation;
 import com.verygood.security.larky.annot.CacheableWhenFrozen;
 import net.starlark.java.annot.Param;
 import net.starlark.java.annot.ParamType;
 import net.starlark.java.annot.StarlarkMethod;
-import com.verygood.security.larky.modules.types.NativeMutability;
+import net.starlark.java.eval.Starlark;
 import net.starlark.java.eval.EvalException;
 import net.starlark.java.eval.Mutability;
 import net.starlark.java.eval.StarlarkBytes;
@@ -19,7 +20,7 @@ import org.bouncycastle.util.Memoable;
 public abstract class LarkyDigest implements StarlarkValue, Mutability.Freezable {
 
   // The evaluation that created this hash; update() fails once it is frozen.
-  private final Mutability mutability = NativeMutability.current();
+  private final Mutability mutability = CurrentEvaluation.mutabilityForNewValue();
 
   @Override
   public Mutability mutability() {
@@ -38,7 +39,7 @@ public abstract class LarkyDigest implements StarlarkValue, Mutability.Freezable
       })}
   )
   public void update(StarlarkBytes data) throws EvalException {
-    NativeMutability.checkMutable(this);
+    Starlark.checkMutable(this);
     byte[] input = data.toByteArray();
     this.getDigest().update(input, 0, input.length);
   }
@@ -56,7 +57,7 @@ public abstract class LarkyDigest implements StarlarkValue, Mutability.Freezable
   protected byte[] reuseDigestIfPossible() throws EvalException {
     if (!(this.getDigest() instanceof Memoable)) {
       // doFinal on the digest itself resets it, which changes its state
-      NativeMutability.checkMutable(this);
+      Starlark.checkMutable(this);
     }
     byte[] resBuf = new byte[this.getDigest().getDigestSize()];
     final ExtendedDigest copy;
