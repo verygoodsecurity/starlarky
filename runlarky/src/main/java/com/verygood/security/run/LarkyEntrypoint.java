@@ -3,10 +3,12 @@ package com.verygood.security.run;
 import com.google.common.base.Strings;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 import com.verygood.security.larky.ModuleSupplier;
@@ -54,6 +56,18 @@ public class LarkyEntrypoint implements Callable<Integer> {
   @CommandLine.Option(names = {"-d", "--debug"}, description="Verbose merged script")
   private boolean debug; //  boolean debug = commandLine.hasOption("d");
 
+  @CommandLine.ArgGroup(exclusive = false)
+  private FunctionsOptions functions;
+
+  static final class FunctionsOptions {
+    @CommandLine.Option(names = "--functions-origin", required = true, description = "Vault API OAuth HTTPS origin")
+    private URI origin;
+
+    @CommandLine.Option(names = "--functions-token-file", required = true,
+        description = "File containing the vault-bound OAuth bearer token")
+    private Path tokenFile;
+  }
+
 
   public static void main(String[] args) {
     if(args.length == 0) {
@@ -100,13 +114,12 @@ public class LarkyEntrypoint implements Callable<Integer> {
     Console console = new FileConsole(CapturingConsole.captureAllConsole(
         LogConsole.writeOnlyConsole(System.out, true)), Path.of(logPath), Duration.ZERO);
 
-    String output =
-      new LarkyScript(StarlarkMode.STRICT)
-        .executeSkylarkWithOutput(
-          prependMergedStarFile,
-          new ModuleSupplier().create(),
-          console
-        ).toString();
+    final String output;
+    try (var caller = functions == null ? null : new FunctionsCaller(functions.origin, functions.tokenFile)) {
+      final var modules = new ModuleSupplier(caller == null ? Map.of() : Map.of("functions", caller)).create();
+      output = new LarkyScript(StarlarkMode.STRICT, modules)
+          .executeSkylarkWithOutput(prependMergedStarFile, modules, console).toString();
+    }
 
     if (debug) {
       System.err.println(output);

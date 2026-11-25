@@ -42,6 +42,7 @@
         <graalvm.version>25.5.5.0.3</graalvm.version>
         <jackson-databind.version>2.23.0</jackson-databind.version>
         <jline.version>4.6.0</jline.version>
+        <httpclient5.version>5.6.5</httpclient5.version>
         <google.truth.version>1.4.5</google.truth.version>
 
         <main.class>com.verygood.security.run.LarkyEntrypoint</main.class>
@@ -82,6 +83,12 @@
             <groupId>info.picocli</groupId>
             <artifactId>picocli</artifactId>
             <version>${picocli.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <version>${httpclient5.version}</version>
         </dependency>
 
         <dependency>

@@ -3,6 +3,13 @@
   "name":"byte[]"
 },
 {
+  "name":"com.verygood.security.run.FunctionsCaller",
+  "methods":[
+    {"name":"invoke", "parameterTypes":["java.lang.String", "net.starlark.java.eval.StarlarkBytes",
+                                      "java.lang.String", "net.starlark.java.eval.StarlarkThread"]}
+  ]
+},
+{
   "name":"com.google.common.util.concurrent.AbstractFuture",
   "fields":[
     {"name":"listeners", "allowUnsafeAccess":true},

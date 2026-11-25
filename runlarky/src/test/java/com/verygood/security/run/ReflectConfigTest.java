@@ -55,7 +55,7 @@ public class ReflectConfigTest {
 
   private static final String CONFIG = "META-INF/native-image/reflect-config.json";
   private static final List<String> SCANNED_PACKAGES =
-      List.of("com.verygood.security.larky.", "net.starlark.java.");
+      List.of("com.verygood.security.larky.", "com.verygood.security.run.", "net.starlark.java.");
 
   /** A reflect-config.json entry: which methods of one class are registered. */
   private record Entry(boolean allPublic, boolean allDeclared, Set<String> methods) {}
