@@ -33,6 +33,22 @@ def request_from_pairs():
     return VGSHttpRequest(URL, data=BODY, headers=H12_LIST, method="POST")
 
 
+def _request_projection(request):
+    return (
+        request.full_url,
+        request.host,
+        request.path,
+        request.query_string,
+        request.get_method(),
+        request.body,
+        request.headers.items(),
+    )
+
+
+__larky_bench_project_request_from_dict = _request_projection
+__larky_bench_project_request_from_pairs = _request_projection
+
+
 def _edit(h):
     # typical script header work: [] / get / pop / in / set / keys / items
     a = h["Content-Type"]

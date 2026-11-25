@@ -28,19 +28,23 @@ import javax.script.SimpleScriptContext;
 /**
  * Calls one function of a {@code .star} file. The spec is {@code path/to/file.star#function}: the
  * file is evaluated once through the JSR-223 engine, and each call invokes {@code function()} with
- * no arguments ({@link Invocable#invokeFunction}). The fingerprint is a hash of {@code
- * repr(function())}, computed in Starlark, so the builds must return equal values.
+ * no arguments ({@link Invocable#invokeFunction}). By default the fingerprint hashes the result's
+ * Starlark {@code repr()}. Define {@code __larky_bench_project_<function>(result)} in the script to
+ * compare a projection of the result, for example when two builds print the same logical value
+ * differently. The projection runs only during parity checks.
  *
  * <p>Compiled by {@code larky-bench} against each build with {@code --workload-src}.
  */
 public final class StarlarkCall {
 
   private static final String REPR = "__larky_bench_repr__";
+  private static final String PROJECTION_PREFIX = "__larky_bench_project_";
 
   private StarlarkCall() {}
 
   private static Invocable engine;
   private static String function;
+  private static String projection;
   private static volatile Object sink;
 
   private static synchronized Invocable engine(String spec) throws Exception {
@@ -62,6 +66,8 @@ public final class StarlarkCall {
     if (!(e instanceof Invocable invocable)) {
       throw new IllegalStateException("this build's engine is not Invocable");
     }
+    String projectionName = PROJECTION_PREFIX + function;
+    projection = e.get(projectionName) == null ? null : projectionName;
     engine = invocable;
     return engine;
   }
@@ -80,7 +86,11 @@ public final class StarlarkCall {
 
   public static String fingerprint(String spec) throws Exception {
     Invocable e = engine(spec);
-    Object repr = e.invokeFunction(REPR, e.invokeFunction(function));
+    Object result = e.invokeFunction(function);
+    if (projection != null) {
+      result = e.invokeFunction(projection, result);
+    }
+    Object repr = e.invokeFunction(REPR, result);
     byte[] digest = MessageDigest.getInstance("SHA-256")
         .digest(String.valueOf(repr).getBytes(StandardCharsets.UTF_8));
     return HexFormat.of().formatHex(digest);
