@@ -3,9 +3,12 @@ package com.verygood.security.larky.jsr223;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.EvaluationSettings;
+import com.verygood.security.larky.parser.ParsedStarFile;
 import java.util.HashMap;
 import java.util.Map;
+import javax.annotation.Nullable;
 import javax.script.Bindings;
 import javax.script.CompiledScript;
 import javax.script.ScriptContext;
@@ -37,6 +40,7 @@ public class HostSettingsTest {
     "LARKY_EVAL_EXPIRATION_MS",
     "LARKY_EVAL_MODULE_PROVIDERS",
     "LARKY_EVAL_SETTINGS",
+    "_EXECUTION_STEPS_",
   };
 
   // The first evaluation in a JVM is slow (class loading, stdlib); deadlines are set after it.
@@ -57,6 +61,51 @@ public class HostSettingsTest {
     LarkyScriptEngine engine = new LarkyScriptEngine();
     engine.setContext(context);
     return engine;
+  }
+
+  private static final class MetadataContext extends SimpleScriptContext implements SupportsMetadata {
+    @Nullable private EvaluationMetadata metadata;
+
+    @Override
+    public @Nullable EvaluationMetadata metadata() {
+      return metadata;
+    }
+
+    @Override
+    public void setMetadata(@Nullable EvaluationMetadata metadata) {
+      this.metadata = metadata;
+    }
+  }
+
+  @Test
+  public void compiledEvalRecordsMetadataOnACustomContext() throws Exception {
+    CompiledScript script = new LarkyScriptEngine().compile("out = 1\n");
+    MetadataContext context = new MetadataContext();
+
+    ParsedStarFile result = (ParsedStarFile) script.eval(context);
+
+    assertThat(context.metadata()).isNotNull();
+    assertThat(context.metadata()).isSameInstanceAs(result.metadata());
+    assertThat(context.metadata().settings()).isEqualTo(EvaluationSettings.NONE);
+  }
+
+  @Test
+  public void compiledEvalWithBindingsRecordsFailureOnTheEngineContext() throws Exception {
+    MetadataContext context = new MetadataContext();
+    LarkyScriptEngine engine = engineWith(context);
+    Bindings engineBindings = context.getBindings(ScriptContext.ENGINE_SCOPE);
+    CompiledScript script = engine.compile("fail(message)\n");
+    Bindings bindings = new SimpleBindings();
+    bindings.put("message", "supplied binding");
+
+    LarkyEvaluationScriptException failure =
+        assertThrows(LarkyEvaluationScriptException.class, () -> script.eval(bindings));
+
+    assertThat(failure).hasMessageThat().contains("supplied binding");
+    assertThat(context.metadata()).isNotNull();
+    assertThat(context.metadata()).isSameInstanceAs(failure.metadata());
+    assertThat(context.getBindings(ScriptContext.ENGINE_SCOPE)).isSameInstanceAs(engineBindings);
+    assertThat(engineBindings).doesNotContainKey("message");
   }
 
   @Test
@@ -91,6 +140,7 @@ public class HostSettingsTest {
     Bindings scope = context.getBindings(ScriptContext.ENGINE_SCOPE);
     assertThat(scope).containsKey("out");
     assertThat(scope).doesNotContainKey("LARKY_EVAL_STEP_LIMIT");
+    assertThat(scope).doesNotContainKey("_EXECUTION_STEPS_");
     // so the next eval on these bindings runs
     engine.eval("out = 2\n");
   }
@@ -115,11 +165,34 @@ public class HostSettingsTest {
     LarkyScriptEngine engine = engineWith(context);
 
     engine.eval(LOOP);
+    assertThat(context.metadata().outcome()).isEqualTo(EvaluationMetadata.Outcome.OK);
 
     ScriptException e =
         assertThrows(ScriptException.class, () -> engine.eval("output = process(input, ctx)"));
     assertThat(e).hasMessageThat().contains("past expiration date");
+    assertThat(context.metadata().outcome()).isEqualTo(EvaluationMetadata.Outcome.DEADLINE);
     assertThat(context.getSettings().expirationMs().getAsLong()).isEqualTo(deadline);
+  }
+
+  @Test
+  public void metadataIsOnTheContextAfterSuccessAndFailure() throws Exception {
+    LarkyScriptContext context =
+        contextWith(EvaluationSettings.builder().stepLimit(1000).build(), Map.of());
+    LarkyScriptEngine engine = engineWith(context);
+    assertThat(context.metadata()).isNull();
+
+    ParsedStarFile ok = (ParsedStarFile) engine.eval("out = [i for i in range(10)]\n");
+    assertThat(context.metadata()).isSameInstanceAs(ok.metadata());
+    assertThat(context.metadata().outcome()).isEqualTo(EvaluationMetadata.Outcome.OK);
+    assertThat(context.metadata().executedSteps()).isGreaterThan(0L);
+    assertThat(ok.getGlobals()).doesNotContainKey("_EXECUTION_STEPS_");
+
+    LarkyEvaluationScriptException e =
+        assertThrows(
+            LarkyEvaluationScriptException.class,
+            () -> engine.eval(LOOP + "out = process(1, 2)\n"));
+    assertThat(context.metadata()).isSameInstanceAs(e.metadata());
+    assertThat(context.metadata().outcome()).isEqualTo(EvaluationMetadata.Outcome.STEP_LIMIT);
   }
 
   @Test
@@ -131,7 +204,8 @@ public class HostSettingsTest {
 
     Bindings bindings = new SimpleBindings();
     bindings.put("n", 3);
-    engine.eval("out = n + 1\n", bindings);
+    ParsedStarFile ok = (ParsedStarFile) engine.eval("out = n + 1\n", bindings);
+    assertThat(context.metadata()).isSameInstanceAs(ok.metadata());
     assertThat(bindings).containsKey("out");
 
     ScriptException e =
@@ -139,6 +213,14 @@ public class HostSettingsTest {
             ScriptException.class,
             () -> engine.eval(LOOP + "out = process(1, 2)\n", new SimpleBindings()));
     assertThat(e).hasMessageThat().contains("too many steps");
+    assertThat(context.metadata().outcome()).isEqualTo(EvaluationMetadata.Outcome.STEP_LIMIT);
   }
 
+  @Test
+  public void aPlainContextRunsWithNoSettings() throws Exception {
+    ScriptContext context = new SimpleScriptContext();
+    LarkyScriptEngine engine = engineWith(context);
+    ParsedStarFile ok = (ParsedStarFile) engine.eval("out = 1\n");
+    assertThat(ok.metadata().settings()).isEqualTo(EvaluationSettings.NONE);
+  }
 }

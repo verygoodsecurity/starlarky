@@ -83,6 +83,19 @@ public class DefaultLarkyInterpreter {
     return evaluate(script, new StreamWriterConsole(writer));
   }
 
+  /** As {@link #evaluate(StarFile, Writer)}; see {@link LarkyScript#evaluate(StarFile, ModuleSet, Console, java.util.function.Consumer)}. */
+  public ParsedStarFile evaluate(
+      StarFile script, Writer writer, java.util.function.Consumer<EvaluationMetadata> metadata)
+      throws IOException, EvalException {
+    return evaluate(script, new StreamWriterConsole(writer), metadata);
+  }
+
+  public ParsedStarFile evaluate(
+      StarFile script, Console console, java.util.function.Consumer<EvaluationMetadata> metadata)
+      throws IOException, EvalException {
+    return larkyScript.evaluate(script, moduleSet, console, metadata);
+  }
+
   public ParsedStarFile evaluate(StarFile script, Console console) throws IOException, EvalException {
     return larkyScript.evaluate(script, moduleSet, console);
   }

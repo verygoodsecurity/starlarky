@@ -16,6 +16,7 @@
 
 package com.verygood.security.larky.jsr223;
 
+import com.verygood.security.larky.runtime.EvaluationMetadata;
 import com.verygood.security.larky.runtime.EvaluationSettings;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -32,7 +33,7 @@ import javax.script.SimpleBindings;
 
 /**
  * A {@link ScriptContext} that carries the host's {@link EvaluationSettings} for the evaluations
- * run in it.
+ * run in it, and reports what happened in the last one ({@link #metadata()}).
  *
  * <pre>{@code
  * LarkyScriptContext context = new LarkyScriptContext();
@@ -43,19 +44,22 @@ import javax.script.SimpleBindings;
  *     .build());
  * context.setBindings(bindings, ScriptContext.ENGINE_SCOPE);
  * engine.eval(script, context);
+ * long steps = context.metadata().executedSteps();
  * }</pre>
  *
  * <p>The settings are not bindings: a script can neither read nor change them. Each evaluation
  * reads them once, when it starts. When this is the engine's context ({@link
- * LarkyScriptEngine#setContext}), they also apply to {@code eval(script, bindings)}.
+ * LarkyScriptEngine#setContext}), they also apply to {@code eval(script, bindings)}, which runs in
+ * a context built from the engine's, and the metadata of such an evaluation is recorded here.
  * {@link LarkyScriptEngine}'s default context is a {@code LarkyScriptContext}.
  *
  * <p>Standard streams are wrapped on first access. A Java host that already has a log writer
  * can provide it together with the settings via {@link #LarkyScriptContext(EvaluationSettings, Writer)}.
  *
- * <p>The engine refuses legacy {@code LARKY_EVAL_*} bindings.
+ * <p>Settings were formerly given as {@code LARKY_EVAL_*} bindings; a binding with such a name, or
+ * {@code _EXECUTION_STEPS_}, is now refused.
  */
-public class LarkyScriptContext implements ScriptContext {
+public class LarkyScriptContext implements ScriptContext, SupportsMetadata {
 
   private static final List<Integer> SCOPES = List.of(ENGINE_SCOPE, GLOBAL_SCOPE);
 
@@ -71,6 +75,7 @@ public class LarkyScriptContext implements ScriptContext {
   @Nullable private Writer errorWriter;
 
   private volatile EvaluationSettings settings = EvaluationSettings.NONE;
+  @Nullable private volatile EvaluationMetadata metadata;
 
   public LarkyScriptContext() {}
 
@@ -199,5 +204,21 @@ public class LarkyScriptContext implements ScriptContext {
 
   public void setSettings(EvaluationSettings settings) {
     this.settings = Objects.requireNonNull(settings, "settings");
+  }
+
+  /**
+   * What happened in the last evaluation run in this context (or, when it is the engine's
+   * context, through {@code eval(script, bindings)}), whether it succeeded or failed; null before
+   * the first one has ended.
+   */
+  @Override
+  @Nullable
+  public EvaluationMetadata metadata() {
+    return metadata;
+  }
+
+  @Override
+  public void setMetadata(@Nullable EvaluationMetadata metadata) {
+    this.metadata = metadata;
   }
 }
