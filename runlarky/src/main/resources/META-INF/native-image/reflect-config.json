@@ -922,6 +922,22 @@
       "allPublicMethods": true,
       "allDeclaredConstructors": true,
       "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.multidict.MultiDictModule"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
+      "name": "com.verygood.security.larky.modules.multidict.LarkyMultiDict"
+  },
+  {
+      "allDeclaredFields": true,
+      "allDeclaredMethods": true,
+      "allPublicMethods": true,
+      "allDeclaredConstructors": true,
+      "allPublicConstructors": true,
       "name": "com.verygood.security.larky.modules.globals.PythonBuiltins"
   },
   {

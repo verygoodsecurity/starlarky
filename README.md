@@ -192,6 +192,22 @@ Example scripts live next to their tests in
 mvn test -pl larky -am -Dtest=VGSLibTests -Dlarky.vgs_test=test_default_request_validation.star -Dsurefire.failIfNoSpecifiedTests=false
 ```
 
+### Preserving repeated HTTP response headers
+
+The `VGSHttpResponse` constructor and `response.headers` assignment accept a
+dict or a sequence of `(name, value)` pairs. `response.headers.items()` returns
+every header line in insertion order, with its original name spelling.
+
+- `response.headers[name]` reads the first value, ignoring case.
+- `response.get_all_headers(name)` returns every value in order.
+- `response.add_header(name, value)` and `response.headers[name] = value` replace
+  all values for the name.
+- `response.append_header(name, value)` adds a line at the end.
+- `response.remove_header(name)` removes every value for the name.
+
+The host can materialize the ordered pairs inside the script and serialize them
+as separate header lines.
+
 ### Rejecting requests without a valid signed token
 
 [`request_validation.star`](larky/src/test/resources/vgs_tests/examples/request_validation.star)

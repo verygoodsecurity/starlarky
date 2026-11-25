@@ -201,6 +201,14 @@ def _is_iterable_test():
 def _is_instance_test():
     assert_true(types.is_instance("", str))
     assert_true(types.is_instance(1, int))
+    assert_true(types.is_instance(False, int))
+    assert_false(types.is_instance([], bool))
+    assert_true(types.is_instance({}, dict))
+    assert_false(types.is_instance([], tuple))
+    assert_true(types.is_instance("abc", (int, str)))
+    assert_true(types.is_instance(1, "int"))
+    assert_true(types.is_instance(larky.struct(__class__ = "bytes"), bytes))
+    assert_false(types.is_instance(builtins.bytearray(b"abc"), bytes))
 
 
 ## Test Objects

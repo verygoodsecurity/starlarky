@@ -292,8 +292,7 @@ public class LarkyCompiledScript extends CompiledScript {
     for (Map.Entry<String, Object> entry : moduleGlobals.entrySet()) {
       String name = entry.getKey();
       Object value = entry.getValue();
-      // a retired setting name is refused as a binding: copying a script's variable of that name
-      // back would make the next run on these bindings fail
+      // Keep host settings out of the script's binding writeback.
       if (LarkyEvaluator.isRetiredSettingName(name)) {
         continue;
       }

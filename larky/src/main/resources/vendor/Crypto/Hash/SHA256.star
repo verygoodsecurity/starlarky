@@ -129,7 +129,7 @@ def new(data=None):
     :Return: A :class:`SHA256Hash` hash object
     """
 
-    return SHA256Hash().new(data)
+    return SHA256Hash(data)
 
 
 def _pbkdf2_hmac_assist(inner, outer, first_digest, iterations):
